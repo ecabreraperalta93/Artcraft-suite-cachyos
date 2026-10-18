@@ -4,6 +4,19 @@ Instalador y actualizador **no oficial** de la *Craft App Suite* de [storytold](
 (ArtCraft Launcher + PhotoCraft, VectorCraft, FilmCraft, LightCraft, PDFCraft, EffectCraft, DesignCraft,
 WordCraft, DeckCraft, GridCraft, CADCraft, SoundCraft) para CachyOS / Arch x86_64.
 
+La suite es un conjunto de alternativas a las herramientas habituales de ofimatia, diseno y CAD, para poder
+trabajar en CachyOS sin depender de Windows/macOS:
+
+| Categoria | Referencia habitual | Apps de la suite |
+|---|---|---|
+| Ofimatia | Microsoft Office | WordCraft (Word), GridCraft (Excel), DeckCraft (PowerPoint) |
+| Diseno y foto/video | Adobe | PhotoCraft (Photoshop), VectorCraft (Illustrator), LightCraft (Lightroom), FilmCraft (Premiere), EffectCraft (After Effects), DesignCraft (InDesign), PDFCraft (Acrobat), SoundCraft (Audition) |
+| CAD | AutoCAD | CADCraft |
+
+Son proyectos independientes (no oficiales, sin relacion con Microsoft, Adobe ni Autodesk; esas marcas son de sus
+duenos y se nombran solo como referencia). Cubren los flujos principales, pero no son clones identicos: pueden faltar
+funciones avanzadas o haber diferencias de formato; revisa el repositorio de cada app para ver su alcance.
+
 No se compila nada: se toman los binarios oficiales de storytold (SHA256 verificado) y se empaquetan como
 paquetes `pacman`, de modo que se instalan, actualizan y desinstalan limpiamente (`pacman -Rns`).
 
