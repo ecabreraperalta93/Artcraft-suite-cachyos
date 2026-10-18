@@ -1,0 +1,7 @@
+.data/
+out/
+*.pkg.tar.zst
+*.run
+pkg/
+src/
+

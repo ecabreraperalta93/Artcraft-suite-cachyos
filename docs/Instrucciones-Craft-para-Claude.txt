@@ -1,0 +1,73 @@
+INSTRUCCIONES PARA CLAUDE: Craft App Suite en CachyOS (instalacion y actualizacion)
+=====================================================================================
+
+1. DE DONDE SALE TODO
+---------------------
+Las apps son de storytold (https://github.com/storytold). Son 13 piezas:
+  ArtCraft Launcher (repo "craft-launcher", paquete "artcraft-launcher") y 12 apps:
+  photocraft, vectorcraft, filmcraft, lightcraft, pdfcraft, effectcraft, designcraft,
+  wordcraft, deckcraft, gridcraft, cadcraft, soundcraft (repo = nombre de la app).
+Cada repo publica en GitHub Releases un tarball oficial para Linux:
+  https://github.com/storytold/<repo>/releases/download/v<VER>/<app>-<VER>-linux-x86_64.tar.gz
+  (con carpetas bin/ y share/) mas un archivo SHA256SUMS (en releases nuevos: SHA256SUMS.txt).
+No se compilo nada. Se uso ese binario oficial tal cual.
+
+2. COMO SE ADAPTO A CACHYOS (ARCH x86_64)
+-----------------------------------------
+Los binarios NO se modificaron. La adaptacion es solo empaquetarlos como paquetes pacman:
+  - Un PKGBUILD por app. Descarga el tarball oficial, verifica su sha256, lo extrae con
+    "bsdtar --strip-components=1", copia bin/ a /usr/bin y share/ a /usr/share
+    (permisos 755 directorios y binarios, 644 el resto). options=('!strip' '!debug' '!lto').
+  - depends comunes: glibc gcc-libs wayland libxkbcommon libxkbcommon-x11 libx11 libxcb
+    libglvnd vulkan-icd-loader. Extra: alsa-lib en deckcraft, effectcraft, filmcraft,
+    soundcraft; ca-certificates en el launcher. El launcher tiene optdepends con las 12 apps.
+  - Metapaquete "craft-suite-all" que depende del launcher, las 12 apps y el actualizador.
+  - Se construye con "makepkg --nodeps" (solo empaqueta; tarda segundos).
+  - Instalador: un .run autoextraible (bash + tar con los .pkg.tar.zst) con menu grafico
+    (kdialog/zenity/yad) o texto, verifica SHA256SUMS e instala con "pacman -U --needed".
+    Pide permisos con pkexec, o con un cuadro de contrasena + sudo si no hay agente polkit.
+  - El launcher oficial detecta que una app se instalo "fuera del launcher" y no intenta
+    autoactualizarla, asi que no choca con pacman.
+Solo en VMs SIN GPU real las apps (egui/wgpu) fallan con un panic de EGL; se arreglan
+exportando (solo en esas maquinas, no en equipos con GPU):
+  __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json
+  LIBGL_ALWAYS_SOFTWARE=1  WGPU_BACKEND=gl
+
+3. COMO ACTUALIZAR A PARTIR DE AHORA (sin danar lo adaptado)
+------------------------------------------------------------
+Existe el comando "craft-suite-update" (paquete "craft-suite-updater"). Hace exactamente
+el mismo proceso de empaquetado, pero con la version nueva:
+  1) Consulta https://api.github.com/repos/storytold/<repo>/releases/latest y compara con
+     "pacman -Q". Nunca baja de version por su cuenta.
+  2) Descarga el tar.gz y SHA256SUMS y VERIFICA el hash; si no coincide, aborta.
+  3) Valida que el tarball siga trayendo bin/<app> ejecutable y share/, y que "ldd" no
+     reporte librerias faltantes. Si falla algo, esa app se queda en su version actual.
+  4) Genera el mismo PKGBUILD, hace "makepkg --nodeps --skipchecksums" e instala con
+     "pacman -U". Guarda los paquetes en ~/.local/share/craft-suite/pkgs/.
+  5) No toca ~/.config, datos del usuario ni accesos .desktop locales.
+Uso:
+  craft-suite-update --check                  ver que hay nuevo
+  craft-suite-update                          actualizar todo lo instalado
+  craft-suite-update wordcraft                actualizar solo una app
+  craft-suite-update --rollback wordcraft 0.6.1   volver a una version anterior
+Un timer de usuario opcional solo AVISA (notificacion) cada dia, nunca instala:
+  systemctl --user enable --now craft-suite-update.timer
+
+4. COMO INSTALAR EL ACTUALIZADOR EN UN EQUIPO QUE YA TIENE LAS APPS
+-------------------------------------------------------------------
+No hace falta reinstalar las apps. Con los archivos de la carpeta Craft-Actualizador
+(craft-suite-updater-1.0-1-any.pkg.tar.zst y SHA256SUMS):
+  sha256sum -c SHA256SUMS
+  sudo pacman -U craft-suite-updater-1.0-1-any.pkg.tar.zst
+  systemctl --user enable --now craft-suite-update.timer     (opcional)
+  craft-suite-update --check
+(El script esta tambien suelto como "craft-suite-update"; lealo antes de ejecutarlo.)
+En un equipo nuevo basta ejecutar Instalar-Craft-Suite.run, que ya lo incluye.
+
+5. ESTADO DE LAS PRUEBAS (honesto)
+----------------------------------
+Probado en una VM CachyOS: WordCraft 0.6.1->0.8.0 y CADCraft 0.6.2->0.8.0 se actualizaron
+y abrieron; la vuelta atras con pacman funciono. No probado: el resto de apps con versiones
+nuevas, ni GNOME/XFCE, ni el --rollback del propio comando en esa VM (fallo solo por falta
+de agente polkit/terminal en la sesion de prueba). Si un release futuro cambia su estructura
+o dependencias, el script se niega a instalar y lo explica: es el comportamiento esperado.

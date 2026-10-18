@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Instalar Craft Suite
+Comment=Instala ArtCraft Launcher y las 12 apps de la Craft App Suite
+Exec=sh -c "exec \"\$(dirname \"\$(readlink -f \"\$1\")\")/instalar-gui.sh\"" _ %k
+Icon=system-software-install
+Terminal=false
+Categories=System;

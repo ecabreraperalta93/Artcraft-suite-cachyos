@@ -1,0 +1,8 @@
+pkgname=craft-suite-all
+pkgver=1.0
+pkgrel=2
+pkgdesc="Metapaquete: ArtCraft Launcher + las 12 apps de la Craft App Suite + actualizador"
+arch=('any')
+url="https://github.com/storytold"
+license=('MIT')
+depends=(craft-suite-updater artcraft-launcher photocraft vectorcraft filmcraft lightcraft pdfcraft effectcraft designcraft wordcraft deckcraft gridcraft cadcraft soundcraft)

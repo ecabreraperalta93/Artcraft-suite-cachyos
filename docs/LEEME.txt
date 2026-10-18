@@ -1,0 +1,59 @@
+CRAFT APP SUITE (ArtCraft Launcher + 12 apps) - paquetes pacman para CachyOS / Arch x86_64
+==========================================================================================
+
+Contenido: 14 paquetes .pkg.tar.zst (lanzador, photocraft, vectorcraft, filmcraft,
+lightcraft, pdfcraft, effectcraft, designcraft, wordcraft, deckcraft, gridcraft,
+cadcraft, soundcraft y el metapaquete craft-suite-all), SHA256SUMS e instalar.sh.
+
+REQUISITOS
+- CachyOS o Arch Linux, x86_64 (glibc 2.35 o superior).
+- Repositorios de Arch/CachyOS activos y con internet: pacman instala las
+  dependencias (wayland, libxkbcommon, libx11, libxcb, libglvnd, vulkan-icd-loader,
+  alsa-lib, ca-certificates...) desde ellos.
+- Una GPU con driver OpenGL/Vulkan funcionando (Mesa o NVIDIA), como cualquier equipo normal.
+  Solo en maquinas virtuales sin aceleracion las apps necesitan render por software de Mesa:
+    __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1 WGPU_BACKEND=gl <app>
+- sudo (terminal) o polkit/pkexec (grafico). "dialog" es opcional (si no esta, el menu cae a modo texto).
+
+INSTALAR EN OTRO EQUIPO (modo grafico, recomendado)
+1) Copia esta carpeta completa al otro equipo (USB, scp, red...).
+2) Doble clic en "Instalar Craft Suite" (archivo .desktop).
+   - En KDE/Dolphin abre directo. En otros gestores (GNOME/Nautilus, XFCE/Thunar) puede
+     pedir "Confiar / Permitir lanzar" la primera vez (clic derecho -> Permitir lanzar).
+   - Si el icono no responde: clic derecho en instalar-gui.sh -> Ejecutar, o en terminal: ./instalar-gui.sh
+3) Marca las apps que quieras (o "TODO") y pulsa Aceptar. Pedira tu contrasena en una
+   ventana normal del sistema y mostrara "Instalacion completada" al terminar.
+   Usa kdialog (KDE) o zenity/yad (otros escritorios) y pkexec; si no estan, abre el
+   instalador de terminal.
+
+INSTALAR POR TERMINAL (alternativa)
+   En esa carpeta:
+     ./instalar.sh                          menu de casillas
+     ./instalar.sh --all                    lanzador + las 12 apps
+     ./instalar.sh --launcher               solo el lanzador
+     ./instalar.sh photocraft vectorcraft   apps concretas
+     ./instalar.sh --dry-run --all          muestra que haria, sin instalar
+   (Si no tiene permiso de ejecucion: bash instalar.sh)
+   Verifica SHA256SUMS antes de instalar y luego hace un solo "pacman -U --needed".
+   Tambien se puede a mano:  sudo pacman -U artcraft-launcher-*.pkg.tar.zst photocraft-*.pkg.tar.zst
+
+DESINSTALAR
+   sudo pacman -R craft-suite-all artcraft-launcher photocraft vectorcraft filmcraft \
+     lightcraft pdfcraft effectcraft designcraft wordcraft deckcraft gridcraft cadcraft soundcraft
+
+NOTAS IMPORTANTES
+- Son versiones ALPHA ("early alpha" segun sus autores). Binarios oficiales de
+  github.com/storytold, sin recompilar; solo se reempaquetaron para pacman.
+- NO se actualizan solas: los paquetes son locales. El lanzador puede avisar de
+  versiones nuevas, pero actualizar exige regenerar los paquetes con la nueva release.
+- El lanzador reconoce las apps instaladas con estos paquetes como "Installed".
+- Cada app guarda sus datos y ajustes en el HOME del usuario que la ejecuta
+  (~/.config, ~/.local/share). Desinstalar los paquetes no los borra.
+- Licencia de las apps: MIT OR Apache-2.0 (copias en /usr/share/doc/<app>/).
+
+ACTUALIZACIONES
+  Se instala craft-suite-update. Uso:  craft-suite-update --check | craft-suite-update | craft-suite-update --rollback APP VERSION
+  Descarga el release oficial de storytold, verifica SHA256, comprueba que el layout y las librerias
+  sigan siendo compatibles y lo re-empaqueta como paquete pacman (sin compilar). Si algo no valida,
+  la version instalada NO se toca. No modifica ~/.config ni tus datos. Un timer de usuario
+  (craft-suite-update.timer) solo AVISA cada dia; nunca instala solo.

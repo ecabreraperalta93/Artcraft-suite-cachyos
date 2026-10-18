@@ -1,0 +1,14 @@
+pkgname=craft-suite-updater
+pkgver=1.0
+pkgrel=1
+pkgdesc="Actualizador seguro de la Craft App Suite (re-empaqueta releases oficiales, con verificacion y rollback)"
+arch=('any')
+license=('MIT')
+depends=(bash curl python pacman libarchive coreutils binutils)
+source=(craft-suite-update craft-suite-update.service craft-suite-update.timer)
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+package() {
+  install -Dm755 craft-suite-update "$pkgdir/usr/bin/craft-suite-update"
+  install -Dm644 craft-suite-update.service "$pkgdir/usr/lib/systemd/user/craft-suite-update.service"
+  install -Dm644 craft-suite-update.timer "$pkgdir/usr/lib/systemd/user/craft-suite-update.timer"
+}

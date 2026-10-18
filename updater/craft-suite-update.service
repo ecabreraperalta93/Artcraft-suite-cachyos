@@ -1,0 +1,5 @@
+[Unit]
+Description=Avisar de actualizaciones de Craft Suite
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/craft-suite-update --notify

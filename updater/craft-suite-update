@@ -1,0 +1,92 @@
+#!/bin/bash
+# craft-suite-update - actualiza las apps Craft desde los releases oficiales de storytold,
+# re-empaquetandolas como paquetes pacman (sin compilar) con las mismas reglas que el instalador.
+# Nunca toca ~/.config ni datos de usuario; si algo no valida, la version instalada queda intacta.
+#   craft-suite-update --check            solo mostrar que hay nuevo
+#   craft-suite-update [--yes] [apps...]  actualizar (todas las instaladas si no se indican)
+#   craft-suite-update --rollback app [version]   volver a una version anterior
+#   craft-suite-update --notify           (timer) avisa por notificacion si hay novedades
+set -uo pipefail
+APPS="photocraft vectorcraft filmcraft lightcraft pdfcraft effectcraft designcraft wordcraft deckcraft gridcraft cadcraft soundcraft artcraft-launcher"
+WORK="${XDG_CACHE_HOME:-$HOME/.cache}/craft-suite-update"; KEEP="${XDG_DATA_HOME:-$HOME/.local/share}/craft-suite/pkgs"
+BASEDEPS="glibc gcc-libs wayland libxkbcommon libxkbcommon-x11 libx11 libxcb libglvnd vulkan-icd-loader"
+MODE=update; YES=0; BUILDONLY=0; SEL=(); RBVER=""
+for a in "$@"; do case $a in
+  --check) MODE=check;; --notify) MODE=notify;; --yes|-y) YES=1;; --rollback) MODE=rollback;; --build-only) BUILDONLY=1;; --fetch) MODE=fetch;;
+  -h|--help) sed -n 2,9p "$0"; exit 0;; *) SEL+=("$a");; esac; done
+[ $MODE = rollback ] && { RBVER="${SEL[1]:-}"; SEL=("${SEL[0]:-}"); [ -n "${SEL[0]}" ] || { echo "uso: --rollback app [version]"; exit 2; }; }
+[ ${#SEL[@]} -eq 0 ] && SEL=($APPS)
+mkdir -p "$WORK" "$KEEP"
+repo_of(){ [ "$1" = artcraft-launcher ] && echo craft-launcher || echo "$1"; }
+tarpfx(){ echo "$1"; }
+inst_ver(){ pacman -Q "$1" 2>/dev/null | awk '{sub(/-[0-9]+$/,"",$2);print $2}'; }
+latest_tag(){ curl -fsS -m 20 "https://api.github.com/repos/storytold/$(repo_of "$1")/releases/latest" | python3 -c 'import sys,json;print(json.load(sys.stdin)["tag_name"].lstrip("v"))'; }
+say(){ [ $MODE = notify ] || echo "$@"; }
+
+build_pkg(){ # app version -> imprime ruta del .pkg.tar.zst
+  local app=$1 ver=$2 repo; repo=$(repo_of "$app"); local d="$WORK/$app-$ver"
+  rm -rf "$d"; mkdir -p "$d"; cd "$d" || return 1
+  local tar="$app-$ver-linux-x86_64.tar.gz" base="https://github.com/storytold/$repo/releases/download/v$ver"
+  curl -fsSL -m 600 -o "$tar" "$base/$tar" && { curl -fsSL -m 60 -o SHA256SUMS "$base/SHA256SUMS" 2>/dev/null || curl -fsSL -m 60 -o SHA256SUMS "$base/SHA256SUMS.txt"; } || { echo "  descarga fallida" >&2; return 1; }
+  local want; want=$(awk -v f="$tar" '$2==f||$2=="*"f{print $1}' SHA256SUMS)
+  [ -n "$want" ] && [ "$(sha256sum "$tar" | cut -d' ' -f1)" = "$want" ] || { echo "  SHA256 NO coincide, abortado" >&2; return 1; }
+  # validar estructura: mismo layout que la version empaquetada (bin/<app> + share/)
+  mkdir -p chk && bsdtar -xf "$tar" -C chk --strip-components=1 || return 1
+  [ -x "chk/bin/$app" ] && [ -d chk/share ] || { echo "  layout nuevo inesperado (falta bin/$app o share/): no se instala" >&2; return 1; }
+  local miss; miss=$(ldd "chk/bin/$app" 2>/dev/null | grep 'not found')
+  [ -z "$miss" ] || { echo "  la version nueva necesita librerias que este sistema no tiene:" >&2; echo "$miss" >&2; return 1; }
+  rm -rf chk
+  local deps="$BASEDEPS"; case $app in deckcraft|effectcraft|filmcraft|soundcraft) deps="$deps alsa-lib";; artcraft-launcher) deps="$deps ca-certificates";; esac
+  cat > PKGBUILD <<PKG
+pkgname=$app
+pkgver=$ver
+pkgrel=1
+pkgdesc="$app (Craft App Suite) - actualizado con craft-suite-update"
+arch=('x86_64')
+url="https://github.com/storytold/$repo"
+license=('MIT' 'Apache-2.0')
+depends=($deps)
+options=('!strip' '!debug' '!lto')
+source=("$tar")
+noextract=("$tar")
+sha256sums=('$want')
+package() {
+  mkdir -p "\$srcdir/x"
+  bsdtar -xf "\$srcdir/$tar" -C "\$srcdir/x" --strip-components=1
+  cd "\$srcdir/x"
+  install -dm755 "\$pkgdir/usr"
+  cp -a bin "\$pkgdir/usr/bin"
+  cp -a share "\$pkgdir/usr/share"
+  find "\$pkgdir/usr" -type d -exec chmod 755 {} +
+  find "\$pkgdir/usr/bin" -type f -exec chmod 755 {} +
+  find "\$pkgdir/usr/share" -type f -exec chmod 644 {} +
+}
+PKG
+  makepkg -f --nodeps --skipchecksums >makepkg.log 2>&1 || { echo "  makepkg fallo, ver $d/makepkg.log" >&2; return 1; }
+  local out; out=$(ls "$d"/$app-$ver-1-x86_64.pkg.tar.zst) && cp "$out" "$KEEP/" && echo "$KEEP/$(basename "$out")"
+}
+asroot(){ if [ $EUID -eq 0 ]; then "$@"; elif [ -t 0 ] || sudo -n true 2>/dev/null; then sudo "$@"; else SHELL=/bin/bash pkexec "$@"; fi; }
+
+if [ $MODE = fetch ]; then app="${SEL[0]:-}"; [ -n "$app" ] || { echo "uso: --fetch app [version]"; exit 2; }
+  ver="${SEL[1]:-}"; [ -n "$ver" ] || ver=$(latest_tag "$app") || exit 1
+  build_pkg "$app" "${ver#v}"; exit $?; fi
+pend=(); notes=()
+for app in "${SEL[@]}"; do
+  [ $MODE = rollback ] || pacman -Q "$app" >/dev/null 2>&1 || continue
+  cur=$(inst_ver "$app")
+  if [ $MODE = rollback ]; then new="${RBVER#v}"; [ -n "$new" ] || { echo "indica la version destino"; exit 2; }
+  else new=$(latest_tag "$app") || { say "[$app] no se pudo consultar GitHub"; continue; }; fi
+  if [ "$cur" = "$new" ]; then say "[$app] al dia ($cur)"; continue; fi
+  if [ $MODE != rollback ] && [ "$(printf '%s\n%s\n' "$cur" "$new" | sort -V | tail -1)" = "$cur" ]; then say "[$app] instalada $cur >= publicada $new, no se toca"; continue; fi
+  say "[$app] $cur -> $new"; pend+=("$app:$new"); notes+=("$app $new")
+done
+[ ${#pend[@]} -eq 0 ] && { say "Nada que actualizar."; exit 0; }
+if [ $MODE = notify ]; then command -v notify-send >/dev/null && notify-send -i system-software-update "Craft Suite: actualizaciones" "${notes[*]}  (ejecuta: craft-suite-update)"; exit 0; fi
+[ $MODE = check ] && exit 0
+if [ $YES -eq 0 ] && [ -t 0 ]; then read -rp "Actualizar ${#pend[@]} paquete(s)? [s/N] " r; [[ $r =~ ^[sSyY] ]] || exit 1; fi
+ok=0; fail=0
+for it in "${pend[@]}"; do app=${it%%:*}; ver=${it#*:}; echo "== $app $ver"
+  if [ $BUILDONLY = 1 ]; then build_pkg "$app" "$ver"; continue; fi
+  if pkg=$(build_pkg "$app" "$ver") && asroot pacman -U --noconfirm "$pkg"; then ok=$((ok+1)); echo "  OK"; else fail=$((fail+1)); echo "  NO actualizada (queda la version anterior)"; fi
+done
+echo "Resultado: $ok actualizada(s), $fail sin cambios."; [ $fail -eq 0 ]
