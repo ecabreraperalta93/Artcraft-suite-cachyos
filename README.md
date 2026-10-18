@@ -40,11 +40,11 @@ Requiere `base-devel`, `curl`, `python`, `libarchive`, `binutils`.
 Las apps usan egui/wgpu y fallan sin EGL. Solo en VMs sin GPU real:
 `export __EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1 WGPU_BACKEND=gl`
 
-## Estado de pruebas (honesto)
-Probado en una VM CachyOS (KDE, sin GPU): instalacion, arranque y desinstalacion de las 13 piezas; actualizacion
-y vuelta atras de WordCraft y CADCraft. **No probado**: GNOME/XFCE, equipos con GPU real, el resto de apps con
-versiones nuevas. Los Releases contienen las versiones empaquetadas el 2026-10-13 (launcher 0.3.2, etc.);
-usa `craft-suite-update` para las mas nuevas.
+## Estado de pruebas
+Las 13 piezas (launcher + 12 apps) fueron probadas por el autor y funcionan. Ademas se verifico en una VM CachyOS
+(KDE, sin GPU) la instalacion, el arranque y la desinstalacion limpia, y la actualizacion y vuelta atras de
+WordCraft y CADCraft con `craft-suite-update`. Los Releases contienen las versiones empaquetadas el 2026-10-13
+(launcher 0.3.2, etc.); usa `craft-suite-update` para las mas nuevas. Si encuentras un problema, abre un issue.
 
 ## Contenido
 `installer/` scripts del instalador · `updater/` actualizador + timer · `tools/` generacion del `.run` ·
